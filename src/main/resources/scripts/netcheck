@@ -1,0 +1,120 @@
+#!/bin/bash
+#Script written by Olu Ojewale
+#version 1.0
+# note:
+# -------
+#script requires 'telnet' command to run. This can be replaced by nc or the like
+
+
+## This function performs further checks in case a port is not reachable
+## It logs directly on the machine using ssh command
+## if RESULT is greater than zero, then port is on
+## if RESULT is zero then port is closed
+## if RESULT is error, then ssh connection was not successful
+
+function further_checks {
+  HOSTNAME=$1
+	PORT=$2
+
+	RESULT=`ssh  -q $HOSTNAME "netstat -anop | grep :$PORT | grep LISTEN | grep -v grep | wc -l;exit"`
+	## check if command was successful other flag error
+	[ $? -ne 0 ] && RESULT="error"
+	echo $RESULT
+	exit
+}
+
+## MAIN BODY STARTS HERE
+## first check if script is called correctly other print format and exit
+
+if [ $# -ne 1 ]
+then
+	echo " Usage $0 <path-to-file>"
+  exit 1
+fi
+
+#set ariables
+
+# source file
+FILENAME=$1
+
+# file to capture telnet log
+MSG_FILE="result.txt"
+
+
+#Connection message to look for
+CONNECTION_SUCCESS_MSG="Connected"
+
+
+#Next check if file exists and can be read
+if [ ! -r "$FILENAME" ]
+then
+	echo " Error! No permission to read $FILENAME or file does not exist "#
+	exit 1
+fi
+
+
+## Read file into memory and delete empty lines and spaces
+
+for next_line in `sed -e '/^\s*$/d' -e 's/ //g' "$FILENAME"`;do
+
+  ## first set SERVER and PORT to empty
+  SERVER=""
+  PORT=""
+
+  # Read values from memory
+  SERVER=`echo $next_line | awk -F: '{print $1}'`  ## extract SERVER
+  PORT=`echo $next_line | awk -F: '{print $2}'`    ## extract PORT
+
+  #initialise  STATUS
+  STATUS="unknown"
+
+  if [ -n "$SERVER" ] && [ -n "$PORT" ]
+  then
+		# first get current time
+		START_TIME=`date +%s.%N`
+		#next check connection, but first delete $MSG_FILE file
+		rm -f $MSG_FILE
+		echo 'quit' | telnet $SERVER $PORT> $MSG_FILE 2>&1
+
+		## check if connection was successful
+		if [ `grep $CONNECTION_SUCCESS_MSG $MSG_FILE | grep -v grep  | wc -l` -eq 1 ]
+		then
+			STATUS="success"
+		else
+			## perform further checks . ssh to the machine for further checks and check if port id open
+			RTN_VAL=$(further_checks $SERVER $PORT)
+
+			if [ `echo $RTN_VAL | grep -v grep | grep error | wc -l` -ne 0 ] ## see if checks came back with errors
+			then
+				# check if connection didn't fail becuase of timeout and if DNS record exist for the host
+				if  [ `grep -i "Connection refused" $MSG_FILE | grep -v grep | wc -l` -ne 0 ] 
+				then
+					STATUS="Connection refused"
+				elif  [ `host -t a $SERVER | grep -iv  "has address" | wc -l` -eq 1  ] 
+				then	
+					# NO DNS Record
+					STATUS="DNS record does not exist"
+				else	
+					STATUS ="Host probably down"
+				fi
+			elif [ `echo $RTN_VAL -eq 0` ]
+			then
+				STATUS="Service not running"
+			elif [ `grep -i "Connection timed out" $MSG_FILE | grep -v grep | wc -l` -ne 0 ]
+      then
+				STATUS="Timeout"
+			elif [ `grep -i "Connection refused" $MSG_FILE | grep -v grep | wc -l` -ne 0 ]
+			then
+				STATUS="Connection refused"
+			fi
+		fi
+
+		# get end time
+		END_TIME=`date +%s.%N`
+		EXECUTION_TIME=`echo $(printf %.2f $(echo "scale=2;($END_TIME - $START_TIME)" | bc -l))`
+		echo "$next_line | $STATUS | ${EXECUTION_TIME}s"
+		
+  else
+		echo -e "$next_line : Error in input data $next_line. Processing next entry"
+  fi
+done

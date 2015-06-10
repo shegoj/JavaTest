@@ -1,0 +1,47 @@
+================================================================================
+netcheck script
+================================================================================
+
+
+The script is implemented in Bash script and uses Telnet command (TCP) for connection and port testing. One of the drawbacks of using telnet is that the 
+command does not accept a timeout parameter to manage connections. Netcat ( or nc) command can achieve the same as telnet but I decided to use telnet because it is  more commonly available on most machines
+
+=================
+Data Validation
+=================
+
+The script performs validation of data ( and input file)
+
+  a) It checks the input file, if the file can be read (permissions)
+  b) It checks and delete space characters in the file
+  c) It deletes any empty space in the file
+
+======================
+Checks done
+======================
+
+Checks done is not very exhaustive. They are:
+  
+  a) If machine and port connection succeed then move to the next entry
+  b) If connection does  not succeed, then try ssh to server. If ssh succeeds, then  check if machine is listening on port
+  c) If it is not then assert "Service not running".
+  c) If ssh fails, check if it is DNS related or not
+  d) Otherwise read telnet ouput message and use that as basis for decision
+
+===================
+Assumptions
+===================
+   a)  Telnet is enabled on local machine 
+   b)  DNS lookup cannot be solely relied on. Host name provided could exist in /etc/hosts file or could be an IP.
+   c)  Telnet command error message is used as last resort in determining cause of error
+
+ 
+==============================
+Improvements that can be made
+==============================
+
+1) Test if netcat or nc command ( or the like)  is available on the local machine and use that (since is easier to pass a timeout parameter) instead of telnet otherwise, use telnet.
+2) The script does not check  the local host for any possible issue that may affect its connections. These may include firewall restrictions, configuration issues etc.
+3) Find and alter Telnet configuration to reduce time-out value as this would improve script execution time.
+
+

@@ -1,0 +1,24 @@
+<assembly>
+  <formats>
+    <format>tar.gz</format>
+  </formats>
+  <includeBaseDirectory>false</includeBaseDirectory>
+  <fileSets>
+    <fileSet>
+      <directory>src/main/resources/scripts</directory>
+      <outputDirectory>project/bin</outputDirectory>
+			<includes>
+				<include>netcheck</include>
+				<!--<lineEnding>unix</lineEnding>-->
+			</includes>
+    <fileMode>0755</fileMode>
+  </fileSet>
+		<fileSet>
+      <directory>src/main/resources/docs</directory>
+      <outputDirectory>project/docs</outputDirectory>
+			<includes>
+				<include>NOTES.txt</include>
+			</includes>
+    </fileSet>
+  </fileSets>
+</assembly>
